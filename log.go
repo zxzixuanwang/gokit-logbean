@@ -1,32 +1,60 @@
 package logbean
 
 import (
+	"io"
 	"os"
-	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
-var (
-	l    log.Logger
-	once sync.Once
-)
-
-type LogType int
-
 const (
-	File LogType = iota
-	Std
+	Std LogType = iota
+	File
+	JsonFile
 )
 
-type LogInfo struct {
-	FilePosition string
-	Level        string
-	Type         LogType
+type (
+	LogType int
+
+	LogInfo struct {
+		FilePosition string
+		Level        string
+		Type         LogType
+		l            log.Logger
+		service      *string
+		caller       int
+		timeFormat   log.Valuer
+		writer       io.Writer
+		otherPrefix  map[string]interface{}
+	}
+
+	Options func(*LogInfo)
+)
+
+func WithOtherPrefix(input map[string]interface{}) Options {
+	return func(li *LogInfo) {
+		li.otherPrefix = input
+	}
 }
 
-type Options func(*LogInfo)
+func WithWriter(writer io.Writer) Options {
+	return func(li *LogInfo) {
+		li.writer = writer
+	}
+}
+
+func WithService(service string) Options {
+	return func(li *LogInfo) {
+		li.service = &service
+	}
+}
+
+func WithCall(caller int) Options {
+	return func(li *LogInfo) {
+		li.caller = caller
+	}
+}
 
 func WithFilePostion(position string) Options {
 	return func(li *LogInfo) {
@@ -46,46 +74,90 @@ func WithLevel(lev string) Options {
 	}
 }
 
-func NewLogInfo(filePosition, lev string) Options {
+func WithTime(format log.Valuer) Options {
 	return func(li *LogInfo) {
-		li.FilePosition = filePosition
-		li.Level = lev
+		li.timeFormat = format
 	}
 }
 
-func GetLog(opt ...Options) log.Logger {
-	li := defaultInfo()
-	for _, o := range opt {
-		o(li)
+func WithType(logType LogType) Options {
+	return func(li *LogInfo) {
+		li.Type = logType
 	}
-	once.Do(func() {
-		var logger log.Logger
-		switch li.Type {
-		case File:
-			f, err := os.OpenFile(li.FilePosition, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
-			if err != nil {
-				panic(err)
-			}
-			logger = log.NewJSONLogger(f)
-		default:
-			logger = log.NewJSONLogger(os.Stdout)
-		}
+}
 
-		logger = log.With(logger, "ts", log.DefaultTimestamp, "caller", log.Caller(5))
-		if li.Level == "all" {
-			logger = level.NewFilter(logger, level.AllowAll())
-		} else {
-			logger = level.NewFilter(logger, level.Allow(logLevelFilter(li.Level)))
+func (li *LogInfo) Info(log ...interface{}) {
+	level.Info(li.l).Log(log...)
+}
+
+func (li *LogInfo) Warn(log ...interface{}) {
+	level.Warn(li.l).Log(log...)
+}
+
+func (li *LogInfo) Debug(log ...interface{}) {
+	level.Debug(li.l).Log(log...)
+}
+
+func (li *LogInfo) Error(log ...interface{}) {
+	level.Error(li.l).Log(log)
+}
+
+func openFile(position string) *os.File {
+	f, err := os.OpenFile(position, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}
+
+func InitLogBean(opt ...Options) *LogInfo {
+	li := defaultInfo()
+	for _, op := range opt {
+		op(li)
+	}
+	if li.Type > 0 && li.writer == nil {
+		li.writer = openFile(li.FilePosition)
+	}
+
+	var logger log.Logger
+	switch li.Type {
+	case JsonFile:
+		logger = log.NewJSONLogger(li.writer)
+	case File:
+		logger = log.NewLogfmtLogger(li.writer)
+	default:
+		logger = log.NewJSONLogger(os.Stdout)
+	}
+
+	logger = log.With(logger, "ts", li.timeFormat, "caller", log.Caller(li.caller))
+
+	if li.service != nil {
+		logger = log.With(logger, "service", li.service)
+	}
+	if len(li.otherPrefix) > 0 {
+		for k, v := range li.otherPrefix {
+			logger = log.With(logger, k, v)
 		}
-		l = logger
-	})
-	return l
+	}
+
+	if li.Level == "all" {
+		logger = level.NewFilter(logger, level.AllowAll())
+	} else {
+		logger = level.NewFilter(logger, level.Allow(logLevelFilter(li.Level)))
+	}
+
+	li.l = logger
+
+	return li
 }
 
 func defaultInfo() *LogInfo {
 	return &LogInfo{
-		Level: "info",
-		Type:  Std,
+		Level:        "info",
+		Type:         Std,
+		caller:       5,
+		timeFormat:   log.DefaultTimestamp,
+		FilePosition: "./app.log",
 	}
 }
 
