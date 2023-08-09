@@ -17,7 +17,7 @@ const (
 type (
 	Logtype int
 
-	LogInfo struct {
+	logInfo struct {
 		filePosition string
 		level        string
 		logtype      Logtype
@@ -29,88 +29,99 @@ type (
 		otherPrefix  map[string]interface{}
 	}
 
-	Options func(*LogInfo)
+	Options        func(*logInfo)
+	LogBeanService interface {
+		GetType() Logtype
+		GetLevel() string
+		GetFilePostion() string
+		Warn(log ...interface{})
+		Info(log ...interface{})
+		Debug(log ...interface{})
+		Error(log ...interface{})
+	}
 )
 
+var _ LogBeanService = (*logInfo)(nil)
+
 func WithOtherPrefix(input map[string]interface{}) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.otherPrefix = input
 	}
 }
 
 func WithWriter(writer io.Writer) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.writer = writer
 	}
 }
 
 func WithService(service string) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.service = &service
 	}
 }
 
 func WithCall(caller int) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.caller = caller
 	}
 }
 
 func WithFilePostion(position string) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.filePosition = position
 	}
 }
 
 func WithOutput(output Logtype) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.logtype = output
 	}
 }
 
 func WithLevel(lev string) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.level = lev
 	}
 }
 
 func WithTime(format log.Valuer) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.timeFormat = format
 	}
 }
 
 func WithType(logtype Logtype) Options {
-	return func(li *LogInfo) {
+	return func(li *logInfo) {
 		li.logtype = logtype
 	}
 }
 
-func (li *LogInfo) GetType() Logtype {
+func (li *logInfo) GetType() Logtype {
 	return li.logtype
 }
 
-func (li *LogInfo) GetLevel() string {
+func (li *logInfo) GetLevel() string {
 	return li.level
 }
 
-func (li *LogInfo) GetFilePostion() string {
+func (li *logInfo) GetFilePostion() string {
 	return li.filePosition
 }
 
-func (li *LogInfo) Info(log ...interface{}) {
+func (li *logInfo) Info(log ...interface{}) {
 	level.Info(li.l).Log(log...)
 }
 
-func (li *LogInfo) Warn(log ...interface{}) {
+func (li *logInfo) Warn(log ...interface{}) {
 	level.Warn(li.l).Log(log...)
 }
 
-func (li *LogInfo) Debug(log ...interface{}) {
+func (li *logInfo) Debug(log ...interface{}) {
 	level.Debug(li.l).Log(log...)
 }
 
-func (li *LogInfo) Error(log ...interface{}) {
+func (li *logInfo) Error(log ...interface{}) {
 	level.Error(li.l).Log(log)
 }
 
@@ -122,7 +133,7 @@ func openFile(position string) *os.File {
 	return f
 }
 
-func InitLogBean(opt ...Options) *LogInfo {
+func InitLogBean(opt ...Options) LogBeanService {
 	li := defaultInfo()
 	for _, op := range opt {
 		op(li)
@@ -163,8 +174,8 @@ func InitLogBean(opt ...Options) *LogInfo {
 	return li
 }
 
-func defaultInfo() *LogInfo {
-	return &LogInfo{
+func defaultInfo() *logInfo {
+	return &logInfo{
 		level:        "info",
 		logtype:      Std,
 		caller:       5,
