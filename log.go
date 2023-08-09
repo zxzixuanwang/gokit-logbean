@@ -9,18 +9,18 @@ import (
 )
 
 const (
-	Std LogType = iota
+	Std Logtype = iota
 	File
 	JsonFile
 )
 
 type (
-	LogType int
+	Logtype int
 
 	LogInfo struct {
-		FilePosition string
-		Level        string
-		Type         LogType
+		filePosition string
+		level        string
+		logtype      Logtype
 		l            log.Logger
 		service      *string
 		caller       int
@@ -58,19 +58,19 @@ func WithCall(caller int) Options {
 
 func WithFilePostion(position string) Options {
 	return func(li *LogInfo) {
-		li.FilePosition = position
+		li.filePosition = position
 	}
 }
 
-func WithOutput(output LogType) Options {
+func WithOutput(output Logtype) Options {
 	return func(li *LogInfo) {
-		li.Type = output
+		li.logtype = output
 	}
 }
 
 func WithLevel(lev string) Options {
 	return func(li *LogInfo) {
-		li.Level = lev
+		li.level = lev
 	}
 }
 
@@ -80,10 +80,22 @@ func WithTime(format log.Valuer) Options {
 	}
 }
 
-func WithType(logType LogType) Options {
+func WithType(logtype Logtype) Options {
 	return func(li *LogInfo) {
-		li.Type = logType
+		li.logtype = logtype
 	}
+}
+
+func (li *LogInfo) GetType() Logtype {
+	return li.logtype
+}
+
+func (li *LogInfo) GetLevel() string {
+	return li.level
+}
+
+func (li *LogInfo) GetFilePostion() string {
+	return li.filePosition
 }
 
 func (li *LogInfo) Info(log ...interface{}) {
@@ -115,12 +127,12 @@ func InitLogBean(opt ...Options) *LogInfo {
 	for _, op := range opt {
 		op(li)
 	}
-	if li.Type > 0 && li.writer == nil {
-		li.writer = openFile(li.FilePosition)
+	if li.logtype > 0 && li.writer == nil {
+		li.writer = openFile(li.filePosition)
 	}
 
 	var logger log.Logger
-	switch li.Type {
+	switch li.logtype {
 	case JsonFile:
 		logger = log.NewJSONLogger(li.writer)
 	case File:
@@ -140,10 +152,10 @@ func InitLogBean(opt ...Options) *LogInfo {
 		}
 	}
 
-	if li.Level == "all" {
+	if li.level == "all" {
 		logger = level.NewFilter(logger, level.AllowAll())
 	} else {
-		logger = level.NewFilter(logger, level.Allow(logLevelFilter(li.Level)))
+		logger = level.NewFilter(logger, level.Allow(logLevelFilter(li.level)))
 	}
 
 	li.l = logger
@@ -153,11 +165,11 @@ func InitLogBean(opt ...Options) *LogInfo {
 
 func defaultInfo() *LogInfo {
 	return &LogInfo{
-		Level:        "info",
-		Type:         Std,
+		level:        "info",
+		logtype:      Std,
 		caller:       5,
 		timeFormat:   log.DefaultTimestamp,
-		FilePosition: "./app.log",
+		filePosition: "./app.log",
 	}
 }
 
