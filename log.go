@@ -178,7 +178,7 @@ func defaultInfo() *logInfo {
 	return &logInfo{
 		level:        "info",
 		logtype:      Std,
-		caller:       5,
+		caller:       6,
 		timeFormat:   log.DefaultTimestamp,
 		filePosition: "./app.log",
 	}
