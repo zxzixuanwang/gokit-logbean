@@ -110,19 +110,19 @@ func (li *logInfo) GetFilePostion() string {
 }
 
 func (li *logInfo) Info(log ...interface{}) {
-	level.Info(li.l).Log(log...)
+	_ = level.Info(li.l).Log(log...)
 }
 
 func (li *logInfo) Warn(log ...interface{}) {
-	level.Warn(li.l).Log(log...)
+	_ = level.Warn(li.l).Log(log...)
 }
 
 func (li *logInfo) Debug(log ...interface{}) {
-	level.Debug(li.l).Log(log...)
+	_ = level.Debug(li.l).Log(log...)
 }
 
 func (li *logInfo) Error(log ...interface{}) {
-	level.Error(li.l).Log(log)
+	_ = level.Error(li.l).Log(log...)
 }
 
 func openFile(position string) *os.File {

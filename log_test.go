@@ -1,6 +1,7 @@
 package logbean
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -25,4 +26,9 @@ func TestCustomWriter(t *testing.T) {
 	l := InitLogBean(WithService("test_writer"), WithWriter(openFile("./custom.log")), WithType(File))
 	l.Info("i am", "info")
 	l.Debug("i am", "debug")
+}
+
+func TestError(t *testing.T) {
+	l := InitLogBean()
+	l.Error("error", fmt.Errorf("inner err:%s", "invalid code"))
 }
